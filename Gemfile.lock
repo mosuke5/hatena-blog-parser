@@ -16,6 +16,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  nokogiri
   sanitize
 
 BUNDLED WITH

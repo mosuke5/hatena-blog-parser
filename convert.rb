@@ -1,6 +1,8 @@
 require 'pp'
+require 'cgi'
 require 'time'
 require 'sanitize'
+require 'nokogiri'
 require 'fileutils'
 
 def make_filename(basename)
@@ -40,15 +42,23 @@ end
 
 # Convert to Hugo format
 result.each do |r|
+  if r['STATUS'] == 'Draft'
+    next
+  end
   filename = make_filename(r["BASENAME"])
   dirpath = make_dirpath(r["BASENAME"])
   FileUtils.mkdir_p("./data/#{dirpath}/")
   File.open("./data/#{dirpath}/#{filename}.md", "w") do |f|
     date = DateTime
       .strptime("#{r['DATE']} JST", '%m/%d/%Y %H:%M:%s %Z')
-      .strftime('%Y-%m-%dT%H:%M:%S+9:00')
+      .strftime('%Y-%m-%dT%H:%M:%S+09:00')
     archive_year = DateTime.strptime("#{r['DATE']} JST", '%m/%d/%Y %H:%M:%s %Z').year
-    description = Sanitize.clean(r['BODY']).gsub(/(\r\n|\r|\n|\f)/,"").slice(0, 120)
+    description = Sanitize.clean(r['BODY']).gsub(/(\r\n|\r|\n|\f)/,"").slice(0, 120).gsub("\"", "\\\"")
+
+    doc = Nokogiri::HTML.parse(r['BODY'])
+    doc.search('pre').each do |d|
+      d.content = CGI.unescapeHTML(Sanitize.clean(d))
+    end
     content = <<EOS
 +++
 Categories = #{r['CATEGORY']}
@@ -58,11 +68,12 @@ date = "#{date}"
 title = "#{r['TITLE']}"
 author = "#{r['AUTHOR']}"
 archive = ["#{archive_year}"]
+draft = false
 +++
 
-#{r['BODY']}
+#{doc.search('body').to_html}
 EOS
+
     f.puts content
   end
 end
-

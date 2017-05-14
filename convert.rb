@@ -1,5 +1,17 @@
 require 'pp'
+require 'time'
+require 'sanitize'
+require 'fileutils'
 
+def make_filename(basename)
+  basename.split('/').last
+end
+
+def make_dirpath(basename)
+  basename.split('/')[0..2].join('/')
+end
+
+# Parse Hatena blog export file
 result = []
 File.open(ARGV[0], "r") do |f| 
   entries = f.read.split("\n--------\n")
@@ -26,4 +38,31 @@ File.open(ARGV[0], "r") do |f|
   end
 end
 
-pp result
+# Convert to Hugo format
+result.each do |r|
+  filename = make_filename(r["BASENAME"])
+  dirpath = make_dirpath(r["BASENAME"])
+  FileUtils.mkdir_p("./data/#{dirpath}/")
+  File.open("./data/#{dirpath}/#{filename}.md", "w") do |f|
+    date = DateTime
+      .strptime("#{r['DATE']} JST", '%m/%d/%Y %H:%M:%s %Z')
+      .strftime('%Y-%m-%dT%H:%M:%S+9:00')
+    archive_year = DateTime.strptime("#{r['DATE']} JST", '%m/%d/%Y %H:%M:%s %Z').year
+    description = Sanitize.clean(r['BODY']).gsub(/(\r\n|\r|\n|\f)/,"").slice(0, 120)
+    content = <<EOS
++++
+Categories = #{r['CATEGORY']}
+Description = "#{description}"
+Tags = #{r['CATEGORY']}
+date = "#{date}"
+title = "#{r['TITLE']}"
+author = "#{r['AUTHOR']}"
+archive = ["#{archive_year}"]
++++
+
+#{r['BODY']}
+EOS
+    f.puts content
+  end
+end
+

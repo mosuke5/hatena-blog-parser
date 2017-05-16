@@ -61,7 +61,7 @@ result.each do |r|
     end
     content = <<EOS
 +++
-Categories = #{r['CATEGORY']}
+Categories = ["tech"]
 Description = "#{description}"
 Tags = #{r['CATEGORY']}
 date = "#{date}"
